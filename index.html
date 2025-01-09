@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025新春快乐 - 烟花与山丘</title>
+    <style>
+        /* 加载界面样式 */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #fde8e8; /* 淡红色背景 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .loading-progress {
+            font-family: 'Arial', sans-serif;
+            font-size: 1.5rem;
+            color: #8B0000;
+            margin-bottom: 10px;
+        }
+        .loading-bar-container {
+            width: 300px;
+            height: 20px;
+            background: repeating-linear-gradient(
+                45deg,
+                #d32f2f,
+                #d32f2f 10px,
+                #f0f0f0 10px,
+                #f0f0f0 20px
+            ); /* 红白相间斜条状 */
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .loading-bar {
+            width: 0;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.5); /* 半透明白色覆盖 */
+            transition: width 1.5s linear;
+        }
+        .loading-text {
+            font-family: 'Arial', sans-serif;
+            font-size: 1.2rem;
+            color: #8B0000;
+            margin-top: 10px;
+        }
+
+        /* 主界面样式 */
+        body {
+            font-family: '宋体', serif;
+            background-color: #fde8e8; /* 淡红色背景 */
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            position: relative;
+        }
+        h1 {
+            font-family: '华文彩云', cursive;
+            font-size: 4rem;
+            color: #d32f2f;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            display: none; /* 初始隐藏 */
+        }
+        p {
+            font-family: '华文楷体', serif;
+            font-size: 1.5rem;
+            color: #8B0000; /* 深红色文字 */
+            margin-top: 20px;
+            white-space: nowrap;
+            display: none; /* 初始隐藏 */
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            display: none; /* 初始隐藏 */
+        }
+        .ground {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%; /* 地平面高度调高 */
+            background: linear-gradient(to top, #f0f0f0, #d0d0d0); /* 更明显的渐变 */
+            z-index: 1;
+            clip-path: polygon(
+                0% 100%,
+                10% 90%,
+                20% 95%,
+                30% 85%,
+                40% 92%,
+                50% 88%,
+                60% 94%,
+                70% 87%,
+                80% 91%,
+                90% 89%,
+                100% 100%
+            ); /* 起伏的山丘效果 */
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3); /* 增加阴影效果 */
+            display: none; /* 初始隐藏 */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 加载界面 -->
+    <div class="loading-screen">
+        <div class="loading-progress">0%</div>
+        <div class="loading-bar-container">
+            <div class="loading-bar"></div>
+        </div>
+        <div class="loading-text">Loading...</div>
+    </div>
+
+    <!-- 主界面 -->
+    <h1>2025新春快乐</h1>
+    <p>——— 去岁千般皆如愿，今年万事定称心 ———</p>
+
+    <canvas id="fireworksCanvas"></canvas>
+    <div class="ground"></div> <!-- 地平面分界线 -->
+
+    <script>
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // 颜色配置
+        const colors = [
+            'rgb(238, 176, 33)',   // 金黄色
+            'rgb(0, 115, 189)',    // 蓝色
+            'rgb(129, 216, 207)',  // 青绿色
+            'rgb(144, 0, 33)'      // 深红色
+        ];
+        let fireworks = [];
+
+        class Firework {
+            constructor(x, y, size) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.color = colors[Math.floor(Math.random() * colors.length)]; // 随机颜色
+                this.particles = [];
+                this.exploded = false;
+                this.radius = 5;
+                this.scale = 1; // 初始大小
+                this.trail = []; // 拖尾效果
+            }
+
+            explode() {
+                const particleCount = this.size === 'large' ? 200 : 100;
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = Math.random() * 2 * Math.PI;
+                    const speed = this.size === 'large' ? Math.random() * 8 + 4 : Math.random() * 6 + 3;
+                    this.particles.push({
+                        x: this.x,
+                        y: this.y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        size: Math.random() * 2 + 1, // 增大粒子大小
+                        color: this.color,
+                        alpha: 1,
+                        gravity: 0.05,
+                        trail: [],
+                    });
+                }
+                this.exploded = true;
+            }
+
+            draw() {
+                if (!this.exploded) {
+                    this.drawTrail(this.trail, this.radius, this.color);
+                    this.drawParticle(this.x, this.y, this.radius, this.color, 1);
+                } else {
+                    this.particles.forEach(particle => {
+                        this.drawTrail(particle.trail, particle.size, particle.color);
+                        this.drawParticle(particle.x, particle.y, particle.size, particle.color, particle.alpha);
+                    });
+                }
+            }
+
+            drawTrail(trail, size, color) {
+                trail.forEach((trailPoint, index) => {
+                    const alpha = 0.8 * (1 - index / trail.length); // 拖尾透明度更高
+                    this.drawParticle(trailPoint.x, trailPoint.y, size * (1 - index / trail.length), color, alpha);
+                });
+            }
+
+            drawParticle(x, y, size, color, alpha) {
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${parseInt(color.slice(4, 7))}, ${parseInt(color.slice(9, 12))}, ${parseInt(color.slice(14, 17))}, ${alpha})`;
+                ctx.fill();
+            }
+
+            update() {
+                if (!this.exploded) {
+                    this.trail.push({ x: this.x, y: this.y });
+                    if (this.trail.length > 20) {
+                        this.trail.shift(); // 保留最多20个拖尾点
+                    }
+
+                    this.y -= 2; // 上升速度
+                    this.scale += 0.01; // 逐渐变大，幅度较小
+                    if (this.y < canvas.height * 0.5) {
+                        this.explode();
+                    }
+                } else {
+                    this.particles.forEach(particle => {
+                        particle.trail.push({ x: particle.x, y: particle.y });
+                        if (particle.trail.length > 20) {
+                            particle.trail.shift(); // 保留最多20个尾迹点
+                        }
+
+                        particle.x += particle.vx;
+                        particle.y += particle.vy;
+                        particle.vy += particle.gravity; // 重力效果
+                        particle.alpha -= 0.02; // 粒子消失更快
+                    });
+                    this.particles = this.particles.filter(particle => particle.alpha > 0);
+                }
+            }
+        }
+
+        function createFirework(x, y, size) {
+            fireworks.push(new Firework(x, y, size));
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            fireworks.forEach((firework, index) => {
+                firework.update();
+                firework.draw();
+                if (firework.exploded && firework.particles.length === 0) {
+                    fireworks.splice(index, 1);
+                }
+            });
+            requestAnimationFrame(animate);
+        }
+
+        document.addEventListener('click', function(event) {
+            const x = event.clientX;
+            const y = event.clientY;
+            createFirework(x, y, 'large'); // 点击位置生成一个烟花
+            createFirework(x + Math.random() * 100 - 50, y + Math.random() * 100 - 50, 'medium'); // 随机位置生成第二个烟花
+            createFirework(x + Math.random() * 100 - 50, y + Math.random() * 100 - 50, 'small'); // 随机位置生成第三个烟花
+        });
+
+        // 加载条动画
+        const loadingBar = document.querySelector('.loading-bar');
+        const loadingProgress = document.querySelector('.loading-progress');
+
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 2; // 加快加载速度
+            loadingBar.style.width = `${progress}%`;
+            loadingProgress.textContent = `${progress}%`;
+
+            if (progress >= 100) {
+                clearInterval(interval);
+                document.querySelector('.loading-screen').style.display = 'none'; // 隐藏加载界面
+                document.querySelector('h1').style.display = 'block'; // 显示标题
+                document.querySelector('p').style.display = 'block'; // 显示祝福语
+                document.querySelector('canvas').style.display = 'block'; // 显示画布
+                document.querySelector('.ground').style.display = 'block'; // 显示地平面
+                animate(); // 启动烟花动画
+            }
+        }, 15); // 1.5秒完成加载
+    </script>
+</body>
+</html>
